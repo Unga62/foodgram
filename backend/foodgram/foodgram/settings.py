@@ -86,9 +86,9 @@ REST_FRAMEWORK = {
     'DEFAULT_FILTER_BACKENDS': [
         'django_filters.rest_framework.DjangoFilterBackend'],
     'DEFAULT_PERMISSION_CLASSES': [
-        'rest_framework.permissions.IsAuthenticated',],
+        'rest_framework.permissions.IsAuthenticated'],
     'DEFAULT_AUTHENTICATION_CLASSES': [
-        'rest_framework.authentication.TokenAuthentication',],
+        'rest_framework.authentication.TokenAuthentication'],
 }
 
 DJOSER = {
@@ -106,10 +106,6 @@ DJOSER = {
 
 CORS_URLS_REGEX = r'^/api/.*$'
 CORS_ORIGIN_ALLOW_ALL = True
-
-# CORS_ALLOWED_ORIGINS = [
-#    'http://localhost:3000',
-# ]
 
 AUTH_USER_MODEL = 'users.Users'
 
