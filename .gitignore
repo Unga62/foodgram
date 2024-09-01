@@ -1,8 +1,8 @@
 frontend/node_modules
 infra/frontend/build
 .env
-.backend_venv
 .DS_Store
+backend/foodgram/.backend_venv
 
 # Byte-compiled / optimized / DLL files
 __pycache__/
