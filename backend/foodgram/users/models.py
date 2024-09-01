@@ -1,8 +1,7 @@
+from api.const import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
 from django.contrib.auth.models import AbstractUser
-from django.db import models
 from django.core.exceptions import ValidationError
-
-from api.const import USERNAME_MAX_LENGTH, EMAIL_MAX_LENGTH
+from django.db import models
 
 
 class Users(AbstractUser):
@@ -46,13 +45,15 @@ class Subscriptions(models.Model):
         Users,
         on_delete=models.CASCADE,
         related_name='user',
-        verbose_name='Пользователь'
+        verbose_name='Пользователь',
+        null=True
     )
     following = models.ForeignKey(
         Users,
         on_delete=models.CASCADE,
         related_name='following',
-        verbose_name='Подписчик'
+        verbose_name='Подписчик',
+        null=True
     )
 
     def clean(self):

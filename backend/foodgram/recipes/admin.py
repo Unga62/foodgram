@@ -1,13 +1,12 @@
 from django.contrib import admin
-
 from recipes.models import (
-    Tags,
-    Ingredients,
-    Recipes,
     ArrayIngredients,
     Favorites,
+    Ingredients,
+    Recipes,
     ShoppingCart,
-    ShortLinkRecipes
+    ShortLinkRecipes,
+    Tags,
 )
 
 admin.site.register(Tags)

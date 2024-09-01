@@ -1,19 +1,19 @@
-from django.db import models
-from django.contrib.auth import get_user_model
 from random import choices
 
-from recipes.validators import (
-    validation_slug,
-    validation_cooking_time,
-    validation_amount_ingredients
-)
 from api.const import (
-    TAGS_AND_SLUG_MAX_LENGTH,
-    NAME_ING_MAX_LENGTH,
+    CHARACTERS,
     MEASUREMENT_UNIT_MAX_LENGTH,
+    NAME_ING_MAX_LENGTH,
     RECIPES_NAME_MAX_LENGTH,
     SHORT_LINK_DB,
-    CHARACTERS,
+    TAGS_AND_SLUG_MAX_LENGTH,
+)
+from django.contrib.auth import get_user_model
+from django.db import models
+from recipes.validators import (
+    validation_amount_ingredients,
+    validation_cooking_time,
+    validation_slug,
 )
 
 User = get_user_model()
@@ -125,12 +125,14 @@ class BaseFavoritesandShoppingCart(models.Model):
     user = models.ForeignKey(
         User,
         on_delete=models.CASCADE,
-        verbose_name='Пользователь'
+        verbose_name='Пользователь',
+        null=True,
     )
     recipes = models.ForeignKey(
         Recipes,
         on_delete=models.CASCADE,
-        verbose_name='Рецепт'
+        verbose_name='Рецепт',
+        null=True,
     )
 
     class Meta:

@@ -1,14 +1,24 @@
 import base64
+import csv
+
+from api.const import USERNAME_MAX_LENGTH
 from django.core.files.base import ContentFile
-from rest_framework import serializers, status
 from django.db.models import F
+from django.http import HttpResponse
 from djoser.serializers import UserCreateSerializer, UserSerializer
+from recipes.models import (
+    ArrayIngredients,
+    Favorites,
+    Ingredients,
+    Recipes,
+    ShoppingCart,
+    ShortLinkRecipes,
+    Tags,
+)
+from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-
-from recipes.models import Tags, Ingredients, Recipes, ShoppingCart, Favorites, ArrayIngredients, ShortLinkRecipes
-from users.models import Users
-from api.const import USERNAME_MAX_LENGTH
+from users.models import Subscriptions, Users
 
 
 class Base64ImageField(serializers.ImageField):
@@ -94,21 +104,6 @@ class ChangePasswordSerializer(serializers.ModelSerializer):
     class Meta:
         model = Users
         fields = ('new_password', 'current_password')
-
-
-class FollowingSerializers(UserSerializer):
-
-    class Meta:
-        model = Users
-        fields = (
-            'email',
-            'id',
-            'username',
-            'first_name',
-            'last_name',
-            'is_subscribed',
-            'avatar',
-        )
 
 
 class ReadRecipeSerializers(serializers.ModelSerializer):
@@ -197,11 +192,6 @@ class CreateRecipeSerializers(serializers.ModelSerializer):
         )
 
     def validate_tags(self, data):
-        if 'tags' not in data:
-            raise ValidationError(
-                'В рецепте должен быть минимум один тег.',
-                Response(status=status.HTTP_400_BAD_REQUEST)
-            )
         list_tags = []
         for i in data:
             if i in list_tags:
@@ -212,11 +202,6 @@ class CreateRecipeSerializers(serializers.ModelSerializer):
         return data
 
     def validate_ingredients(self, data):
-        if 'ingredients' not in data:
-            raise ValidationError(
-                'В рецепте должен быть минимум один ингредиент.',
-                Response(status=status.HTTP_400_BAD_REQUEST)
-            )
         list_ingredients = []
         for i in data:
             if i in list_ingredients:
@@ -242,6 +227,11 @@ class CreateRecipeSerializers(serializers.ModelSerializer):
         recipes.tags.set(tags)
         return recipes
 
+    def to_representation(self, instance):
+        request = self.context.get('request')
+        context = {'request': request}
+        return ReadRecipeSerializers(instance, context=context).data
+
 
 class ShortLinkSerializer(serializers.ModelSerializer):
 
@@ -249,3 +239,132 @@ class ShortLinkSerializer(serializers.ModelSerializer):
         model = ShortLinkRecipes
         fields = ('shortlink', 'recipe', 'full_link',)
         read_only = ('shortlink',)
+
+
+class ForFavoritesandShoppingCartSerializer(ReadRecipeSerializers):
+
+    class Meta:
+        model = Recipes
+        fields = ('id', 'name', 'image', 'cooking_time',)
+
+
+class FavoritesSerializer(serializers.ModelSerializer):
+    recipes = ForFavoritesandShoppingCartSerializer()
+
+    class Meta:
+        model = Favorites
+        fields = ('recipes',)
+
+
+class ShoppingCartSerializer(serializers.ModelSerializer):
+    recipes = ForFavoritesandShoppingCartSerializer()
+
+    class Meta:
+        model = ShoppingCart
+        fields = ('recipes',)
+
+
+class DownloadShoppingCartSerializer(serializers.Serializer):
+
+    def get(self):
+        shoppingсart_user = ShoppingCart.objects.filter(
+            user=self.context.get('request').user
+        )
+        ingredients_recipes = [
+            ArrayIngredients.objects.filter(
+                recipes=obj_list.recipes
+            ) for obj_list in shoppingсart_user
+        ]
+        shoppingcart_list = []
+        for recipes in ingredients_recipes:
+            for obj_list in recipes:
+                serializer = IngredientsSerializers(obj_list.ingredients)
+                key = serializer.data['name']
+                count_obj = False
+                for d in shoppingcart_list:
+                    if d.get('ingredients') == key:
+                        d['amount'] += obj_list.amount
+                        count_obj = True
+                        break
+                if not count_obj:
+                    shoppingcart_list.append(
+                        (
+                            {'amount': obj_list.amount,
+                             'ingredients': serializer.data['name']}
+                        )
+                    )
+        return shoppingcart_list
+
+    def download_csv(self):
+        response = HttpResponse(content_type='text/csv')
+        response['Content-Disposition'] = (
+            'attachment; filename="product_list.csv"'
+        )
+        writer = csv.writer(response)
+        for product in self.get():
+            writer.writerow(
+                [
+                    product.get('ingredients'),
+                    product.get('amount')
+                ]
+            )
+        return response
+
+
+class CreateSubscriptionsSerializer(serializers.ModelSerializer):
+
+    class Meta:
+        model = Subscriptions
+        fields = ('user', 'following')
+
+    def create(self, validated_data):
+        return Subscriptions.objects.create(
+            user=validated_data['user'],
+            following=validated_data['following'],
+        )
+
+
+class SubscriptionsUserSerializer(serializers.ModelSerializer):
+    recipes = serializers.SerializerMethodField(read_only=True)
+    recipes_count = serializers.SerializerMethodField(read_only=True)
+    is_subscribed = serializers.SerializerMethodField(read_only=True)
+
+    class Meta:
+        model = Users
+        fields = (
+            'email',
+            'id',
+            'username',
+            'first_name',
+            'last_name',
+            'is_subscribed',
+            'recipes',
+            'recipes_count',
+            'avatar',
+        )
+
+    def get_recipes(self, obj):
+        serializer = ForFavoritesandShoppingCartSerializer(
+            Recipes.objects.all(),
+            many=True
+        )
+        return serializer.data
+
+    def get_recipes_count(self, obj):
+        return Recipes.objects.count()
+
+    def get_is_subscribed(self, obj):
+        request = self.context.get('request')
+        subscribed = {
+            'user': obj.id,
+            'following': request.user.id
+        }
+        serializer = CreateSubscriptionsSerializer(data=subscribed)
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return True
+
+
+class ReadSubscriptionsUserSerializer(SubscriptionsUserSerializer):
+    def get_is_subscribed(self, obj):
+        return True
