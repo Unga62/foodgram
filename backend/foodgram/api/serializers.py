@@ -1,12 +1,8 @@
+from api.const import USERNAME_MAX_LENGTH
+from api.fields import Base64ImageField
+from django.core.exceptions import ObjectDoesNotExist
 from django.db.models import F
 from djoser.serializers import UserCreateSerializer, UserSerializer
-from rest_framework import serializers, status
-from rest_framework.exceptions import ValidationError
-from rest_framework.response import Response
-from rest_framework.validators import UniqueTogetherValidator
-from django.core.exceptions import ObjectDoesNotExist
-
-from api.const import USERNAME_MAX_LENGTH
 from recipes.models import (
     ArrayIngredient,
     Favorite,
@@ -16,8 +12,11 @@ from recipes.models import (
     ShortLinkRecipe,
     Tag,
 )
+from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
+from rest_framework.validators import UniqueTogetherValidator
 from users.models import Subscriptions, Users
-from api.fields import Base64ImageField
 
 
 class TagSerializers(serializers.ModelSerializer):
@@ -319,7 +318,7 @@ class FavoritesandShoppingCartSerializer(serializers.ModelSerializer):
         return obj
 
 
-class FavoritesSerializer(FavoritesandShoppingCartSerializer): 
+class FavoritesSerializer(FavoritesandShoppingCartSerializer):
 
     class Meta:
         model = Favorite
