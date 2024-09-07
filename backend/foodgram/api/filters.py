@@ -1,4 +1,5 @@
 from django_filters import CharFilter, FilterSet, filters
+
 from recipes.models import Recipe
 
 

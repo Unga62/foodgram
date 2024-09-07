@@ -4,7 +4,7 @@ from django.core.exceptions import ValidationError
 from django.db import models
 
 
-class Users(AbstractUser):
+class User(AbstractUser):
     email = models.EmailField(
         max_length=EMAIL_MAX_LENGTH,
         verbose_name='Электронная почта',
@@ -39,17 +39,17 @@ class Users(AbstractUser):
         return self.username
 
 
-class Subscriptions(models.Model):
+class Subscription(models.Model):
 
     user = models.ForeignKey(
-        Users,
+        User,
         on_delete=models.CASCADE,
         related_name='user',
         verbose_name='Пользователь',
         null=True
     )
     following = models.ForeignKey(
-        Users,
+        User,
         on_delete=models.CASCADE,
         related_name='following',
         verbose_name='Подписчик',
