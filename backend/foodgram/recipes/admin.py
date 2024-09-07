@@ -1,12 +1,12 @@
 from django.contrib import admin
 from recipes.models import (
-    ArrayIngredients,
-    Favorites,
-    Ingredients,
-    Recipes,
+    ArrayIngredient,
+    Favorite,
+    Ingredient,
+    Recipe,
     ShoppingCart,
-    ShortLinkRecipes,
-    Tags,
+    ShortLinkRecipe,
+    Tag,
 )
 
 
@@ -27,10 +27,10 @@ class IngredientsAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 
-admin.site.register(Tags)
-admin.site.register(Ingredients, IngredientsAdmin)
-admin.site.register(Recipes, RecipesAdmin)
-admin.site.register(ArrayIngredients)
-admin.site.register(Favorites)
+admin.site.register(Tag)
+admin.site.register(Ingredient, IngredientsAdmin)
+admin.site.register(Recipe, RecipesAdmin)
+admin.site.register(ArrayIngredient)
+admin.site.register(Favorite)
 admin.site.register(ShoppingCart)
-admin.site.register(ShortLinkRecipes)
+admin.site.register(ShortLinkRecipe)

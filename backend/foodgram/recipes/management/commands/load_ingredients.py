@@ -22,4 +22,3 @@ class Command(BaseCommand):
                     )
 
         self.stdout.write(self.style.SUCCESS('База данных успешно заполнена'))
-        return 'OK'

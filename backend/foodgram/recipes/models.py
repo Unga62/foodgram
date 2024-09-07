@@ -19,7 +19,7 @@ from recipes.validators import (
 User = get_user_model()
 
 
-class Tags (models.Model):
+class Tag(models.Model):
     name = models.CharField(
         max_length=TAGS_AND_SLUG_MAX_LENGTH,
         verbose_name='Тег'
@@ -37,7 +37,7 @@ class Tags (models.Model):
         return self.name
 
 
-class Ingredients(models.Model):
+class Ingredient(models.Model):
     name = models.CharField(
         max_length=NAME_ING_MAX_LENGTH,
         verbose_name='Ингредиент'
@@ -55,9 +55,9 @@ class Ingredients(models.Model):
         return self.name
 
 
-class Recipes(models.Model):
+class Recipe(models.Model):
     tags = models.ManyToManyField(
-        Tags,
+        Tag,
         verbose_name='Теги',
         related_name='recipes'
     )
@@ -67,8 +67,8 @@ class Recipes(models.Model):
         verbose_name='Автор рецепта',
     )
     ingredients = models.ManyToManyField(
-        Ingredients,
-        through='ArrayIngredients',
+        Ingredient,
+        through='ArrayIngredient',
         verbose_name='Ингредиенты',
     )
     name = models.CharField(
@@ -96,16 +96,16 @@ class Recipes(models.Model):
         return self.name
 
 
-class ArrayIngredients(models.Model):
+class ArrayIngredient(models.Model):
     recipes = models.ForeignKey(
-        Recipes,
+        Recipe,
         on_delete=models.CASCADE,
-        related_name='arrayingredients',
+        related_name='array_ingredients',
     )
     ingredients = models.ForeignKey(
-        Ingredients,
+        Ingredient,
         on_delete=models.CASCADE,
-        related_name='arrayingredients',
+        related_name='array_ingredients',
     )
     amount = models.PositiveIntegerField(
         validators=(validation_amount_ingredients,),
@@ -115,10 +115,16 @@ class ArrayIngredients(models.Model):
     class Meta:
         verbose_name = 'Количество ингредиентов'
         verbose_name_plural = 'Количество ингредиентов'
+        constraints = (
+            models.UniqueConstraint(
+                fields=('recipes', 'ingredients'),
+                name='Unique recipes in ingredients'
+            ),
+        )
 
     def __str__(self):
         return (f'В рецепте {self.recipes} количество '
-                f'ингридиетов {self.ingredients}-{self.amount}')
+                f'ингредиентов {self.ingredients}-{self.amount}')
 
 
 class BaseFavoritesandShoppingCart(models.Model):
@@ -129,7 +135,7 @@ class BaseFavoritesandShoppingCart(models.Model):
         null=True,
     )
     recipes = models.ForeignKey(
-        Recipes,
+        Recipe,
         on_delete=models.CASCADE,
         verbose_name='Рецепт',
         null=True,
@@ -139,7 +145,7 @@ class BaseFavoritesandShoppingCart(models.Model):
         abstract = True
 
 
-class Favorites(BaseFavoritesandShoppingCart):
+class Favorite(BaseFavoritesandShoppingCart):
 
     class Meta:
         verbose_name = 'Избранное'
@@ -171,7 +177,7 @@ class ShoppingCart(BaseFavoritesandShoppingCart):
         return f'Пользователь {self.user} добавил {self.recipes} в корзину'
 
 
-class ShortLinkRecipes(models.Model):
+class ShortLinkRecipe(models.Model):
     shortlink = models.CharField(
         verbose_name='Короткая ссылка',
         max_length=SHORT_LINK_DB,
@@ -179,7 +185,7 @@ class ShortLinkRecipes(models.Model):
         blank=True,
     )
     recipe = models.ForeignKey(
-        Recipes,
+        Recipe,
         on_delete=models.CASCADE,
         default=None,
     )
@@ -195,7 +201,7 @@ class ShortLinkRecipes(models.Model):
                 self.shortlink = ''.join(
                     choices(CHARACTERS, k=SHORT_LINK_DB)
                 )
-                if not ShortLinkRecipes.objects.filter(
+                if not ShortLinkRecipe.objects.filter(
                     shortlink=self.shortlink
                 ).exists():
                     break
