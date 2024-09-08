@@ -1,8 +1,12 @@
-from api.const import USERNAME_MAX_LENGTH
-from api.fields import Base64ImageField
-from django.core.exceptions import FieldError
 from django.db.models import F
 from djoser.serializers import UserCreateSerializer, UserSerializer
+from rest_framework import serializers, status
+from rest_framework.exceptions import ValidationError
+from rest_framework.response import Response
+from rest_framework.validators import UniqueTogetherValidator
+
+from api.const import USERNAME_MAX_LENGTH
+from api.fields import Base64ImageField
 from recipes.models import (
     ArrayIngredient,
     Favorite,
@@ -12,10 +16,6 @@ from recipes.models import (
     ShortLinkRecipe,
     Tag,
 )
-from rest_framework import serializers, status
-from rest_framework.exceptions import ValidationError
-from rest_framework.response import Response
-from rest_framework.validators import UniqueTogetherValidator
 from users.models import Subscription, User
 
 
@@ -72,24 +72,6 @@ class UsersSerializer(UserSerializer):
         if user.is_anonymous or user == obj:
             return False
         return user.following.filter(id=obj.id).exists()
-
-    def update(self, instance, validated_data):
-        user = self.context.get('request').user
-        if user != instance.id:
-            raise ValidationError(
-                'Вы не можете редактировать чужой профиль',
-                Response(status=status.HTTP_403_FORBIDDEN)
-            )
-        instance.username = validated_data.get('username', instance.username)
-        instance.email = validated_data.get('email', instance.email)
-        instance.first_name = validated_data.get(
-            'first_name', instance.first_name
-        )
-        instance.last_name = validated_data.get(
-            'last_name', instance.last_name
-        )
-        instance.save()
-        return instance
 
 
 class AvatarUserSerializer(serializers.ModelSerializer):
@@ -288,7 +270,7 @@ class FavoritesandShoppingCartSerializer(serializers.ModelSerializer):
                 recipes=recipes,
                 user=user
             )
-        except FieldError:
+        except ValidationError:
             return {
                 'user': user,
                 'recipes': recipes

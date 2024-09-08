@@ -1,5 +1,15 @@
 import csv
 
+from django.contrib.sites.shortcuts import get_current_site
+from django.db.models import Sum
+from django.http import HttpResponse
+from django.shortcuts import get_object_or_404, redirect
+from django_filters.rest_framework import DjangoFilterBackend
+from rest_framework import status, viewsets
+from rest_framework.decorators import action
+from rest_framework.permissions import AllowAny, IsAuthenticated
+from rest_framework.response import Response
+
 from api.filters import RecipesFilter
 from api.mixins import PaginationMixins
 from api.permissions import CreateUpadateDeletePermissions
@@ -17,11 +27,6 @@ from api.serializers import (
     TagSerializer,
     UsersSerializer,
 )
-from django.contrib.sites.shortcuts import get_current_site
-from django.db.models import Sum
-from django.http import HttpResponse
-from django.shortcuts import get_object_or_404, redirect
-from django_filters.rest_framework import DjangoFilterBackend
 from recipes.models import (
     ArrayIngredient,
     Favorite,
@@ -31,10 +36,6 @@ from recipes.models import (
     ShortLinkRecipe,
     Tag,
 )
-from rest_framework import status, viewsets
-from rest_framework.decorators import action
-from rest_framework.permissions import AllowAny, IsAuthenticated
-from rest_framework.response import Response
 from users.models import Subscription, User
 
 
@@ -83,7 +84,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
             status=status.HTTP_200_OK
         )
 
-    def add_favorite_shopping_cart(self, request, serializers, model, pk):
+    def add_or_delete_favorite_shopping_cart(self, request, serializers, model, pk):
         recipes = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
             recipes_user = {
@@ -110,7 +111,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
         url_path='favorite',
     )
     def favorite(self, request, pk):
-        return self.add_favorite_shopping_cart(
+        return self.add_or_delete_favorite_shopping_cart(
             request,
             FavoritesSerializer,
             Favorite,
@@ -124,7 +125,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
         url_path='shopping_cart',
     )
     def is_in_shopping_cart(self, request, pk):
-        return self.add_favorite_shopping_cart(
+        return self.add_or_delete_favorite_shopping_cart(
             request,
             ShoppingCartSerializer,
             ShoppingCart,
