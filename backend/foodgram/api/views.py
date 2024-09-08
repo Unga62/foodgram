@@ -84,7 +84,13 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
             status=status.HTTP_200_OK
         )
 
-    def add_or_delete_favorite_shopping_cart(self, request, serializers, model, pk):
+    def add_or_delete_favorite_shopping_cart(
+            self,
+            request,
+            serializers,
+            model,
+            pk
+    ):
         recipes = get_object_or_404(Recipe, id=pk)
         if request.method == 'POST':
             recipes_user = {
