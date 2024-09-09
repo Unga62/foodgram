@@ -1,7 +1,8 @@
-from api.const import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
 from django.contrib.auth.models import AbstractUser
 from django.core.exceptions import ValidationError
 from django.db import models
+
+from api.const import EMAIL_MAX_LENGTH, USERNAME_MAX_LENGTH
 
 
 class User(AbstractUser):

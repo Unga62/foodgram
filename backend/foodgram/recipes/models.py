@@ -2,11 +2,6 @@ from random import choices
 
 from django.contrib.auth import get_user_model
 from django.db import models
-from recipes.validators import (
-    validation_amount_ingredients,
-    validation_cooking_time,
-    validation_slug,
-)
 
 from api.const import (
     CHARACTERS,
@@ -15,6 +10,11 @@ from api.const import (
     RECIPES_NAME_MAX_LENGTH,
     SHORT_LINK_DB,
     TAGS_AND_SLUG_MAX_LENGTH,
+)
+from recipes.validators import (
+    validation_amount_ingredients,
+    validation_cooking_time,
+    validation_slug,
 )
 
 User = get_user_model()

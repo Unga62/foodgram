@@ -270,7 +270,7 @@ class FavoritesandShoppingCartSerializer(serializers.ModelSerializer):
                 recipes=recipes,
                 user=user
             )
-        except ValidationError:
+        except self.Meta.model.DoesNotExist:
             return {
                 'user': user,
                 'recipes': recipes
