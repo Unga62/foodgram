@@ -149,6 +149,7 @@ class BaseFavoritesandShoppingCart(models.Model):
 class Favorite(BaseFavoritesandShoppingCart):
 
     class Meta:
+        default_related_name = 'favorites'
         verbose_name = 'Избранное'
         verbose_name_plural = 'Избранное'
         constraints = (
@@ -165,6 +166,7 @@ class Favorite(BaseFavoritesandShoppingCart):
 class ShoppingCart(BaseFavoritesandShoppingCart):
 
     class Meta:
+        default_related_name = 'shopping_list'
         verbose_name = 'Корзина'
         verbose_name_plural = 'Корзина'
         constraints = (

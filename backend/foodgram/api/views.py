@@ -10,8 +10,9 @@ from rest_framework.decorators import action
 from rest_framework.permissions import AllowAny, IsAuthenticated
 from rest_framework.response import Response
 
-from api.filters import RecipesFilter
+from api.filters import RecipesFilter, IngredientFilter
 from api.mixins import PaginationMixins
+from api.pagination import CustomPagination
 from api.permissions import CreateUpadateDeletePermissions
 from api.serializers import (
     AvatarUserSerializer,
@@ -51,7 +52,7 @@ class IngredientsViewset(viewsets.ReadOnlyModelViewSet):
     queryset = Ingredient.objects.all()
     serializer_class = IngredientsSerializer
     permission_classes = (AllowAny,)
-    filter_backends = (DjangoFilterBackend,)
+    filter_backends = (IngredientFilter, )
     search_fields = ('^name',)
 
 
@@ -59,6 +60,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
     queryset = Recipe.objects.all()
     serializer_class = ReadRecipeSerializer
     permission_classes = (AllowAny, CreateUpadateDeletePermissions,)
+    pagination_class = CustomPagination
     filter_backends = (DjangoFilterBackend,)
     filterset_class = RecipesFilter
 
@@ -104,7 +106,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
             serializer.is_valid(raise_exception=True)
             serializer.save()
             return Response(serializer.data, status=status.HTTP_201_CREATED)
-        model.objects.get(recipes=recipes).delete()
+        model.objects.filter(user=request.user, recipes=recipes).delete()
         return Response(
             'Рецепт удален из списка.',
             status=status.HTTP_204_NO_CONTENT
@@ -116,7 +118,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
         permission_classes=(IsAuthenticated,),
         url_path='favorite',
     )
-    def favorite(self, request, pk):
+    def favorite(self, request, pk=None):
         return self.add_or_delete_favorite_shopping_cart(
             request,
             FavoritesSerializer,
@@ -130,7 +132,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
         permission_classes=(IsAuthenticated,),
         url_path='shopping_cart',
     )
-    def is_in_shopping_cart(self, request, pk):
+    def is_in_shopping_cart(self, request, pk=None):
         return self.add_or_delete_favorite_shopping_cart(
             request,
             ShoppingCartSerializer,
@@ -272,7 +274,7 @@ class UserViewset(viewsets.ModelViewSet, PaginationMixins):
         permission_classes=(IsAuthenticated,),
         url_path='subscriptions'
     )
-    def subscriptions_get(self, request):
+    def get_subscriptions(self, request):
         user = request.user
         subscriptions = user.following.all().values_list(
             'following',

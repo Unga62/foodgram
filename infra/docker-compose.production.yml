@@ -1,3 +1,4 @@
+
 version: '3.3'
 
 volumes:
@@ -13,7 +14,7 @@ services:
       - pg_data:/var/lib/postgresql/data
   backend:
     container_name: foodgram-backend
-    build: ../backend/foodgram/
+    image: unga62/foodgram_backend
     env_file: .env
     volumes:
       - static:/backend_static
@@ -22,7 +23,7 @@ services:
       - db
   frontend:
     container_name: foodgram-front
-    build: ../frontend/
+    image: unga62/foodgram_frontend
     env_file: .env
     command: cp -r /app/build/. /frontend_static/
     volumes:
