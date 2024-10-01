@@ -2,7 +2,6 @@ import random
 import string
 
 from django.db.models import F
-from django.core.exceptions import ObjectDoesNotExist
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
@@ -74,7 +73,10 @@ class UsersSerializer(UserSerializer):
         user = self.context.get('request').user
         if user.is_anonymous:
             return False
-        return Subscription.objects.filter(user=user, following=obj.id).exists()
+        return Subscription.objects.filter(
+            user=user,
+            following=obj.id
+        ).exists()
 
 
 class AvatarUserSerializer(serializers.ModelSerializer):
