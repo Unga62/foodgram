@@ -72,19 +72,20 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
     def perform_create(self, serializer):
         return serializer.save(author=self.request.user)
 
-    @action(detail=True, url_path='get-link', methods=['GET'])
-    def get_shortlink(self, request, pk):
+    @action(
+        detail=True,
+        url_path='get-link',
+        methods=['GET']
+    )
+    def shortlink(self, request, pk):
         host = get_current_site(request)
         data = {'recipe': pk,
-                'full_link': f'http://{host}/api/recipes/{pk}'}
+                'full_link': f'http://{host}/recipes/{pk}'}
         serializer = ShortLinkSerializer(data=data)
         serializer.is_valid(raise_exception=True)
         serializer.save()
         shortlink = serializer.data.get('shortlink')
-        return Response(
-            {'shortlink': f'http://{host}/{shortlink}'},
-            status=status.HTTP_200_OK
-        )
+        return Response({'short-link': f'http://{host}/s/{shortlink}/'})
 
     def add_or_delete_favorite_shopping_cart(
             self,
@@ -105,8 +106,11 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
             )
             serializer.is_valid(raise_exception=True)
             serializer.save()
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        model.objects.filter(user=request.user, recipes=recipes).delete()
+            return Response(
+                serializer.data.get('recipes'),
+                status=status.HTTP_201_CREATED
+            )
+        get_object_or_404(model, user=request.user, recipes=recipes).delete()
         return Response(
             'Рецепт удален из списка.',
             status=status.HTTP_204_NO_CONTENT
@@ -118,7 +122,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
         permission_classes=(IsAuthenticated,),
         url_path='favorite',
     )
-    def favorite(self, request, pk=None):
+    def favorite(self, request, pk):
         return self.add_or_delete_favorite_shopping_cart(
             request,
             FavoritesSerializer,
@@ -132,7 +136,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
         permission_classes=(IsAuthenticated,),
         url_path='shopping_cart',
     )
-    def is_in_shopping_cart(self, request, pk=None):
+    def is_in_shopping_cart(self, request, pk):
         return self.add_or_delete_favorite_shopping_cart(
             request,
             ShoppingCartSerializer,
@@ -178,7 +182,7 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
 def redirection(request, shortlink):
     return redirect(
         get_object_or_404(
-            ShortLinkRecipe.objects,
+            ShortLinkRecipe,
             shortlink=shortlink
         ).full_link
     )
@@ -187,6 +191,7 @@ def redirection(request, shortlink):
 class UserViewset(viewsets.ModelViewSet, PaginationMixins):
     """Вьюсет пользователя."""
     queryset = User.objects.all()
+    serializer_class = UsersSerializer
     permission_classes = (AllowAny,)
 
     def get_serializer_class(self):
@@ -242,51 +247,48 @@ class UserViewset(viewsets.ModelViewSet, PaginationMixins):
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(
+        detail=False,
+        methods=['GET'],
+        permission_classes=(IsAuthenticated,),
+    )
+    def subscriptions(self, request):
+        user = request.user
+        queryset = Subscription.objects.filter(user=user)
+        pages = self.paginate_queryset(queryset)
+        serializer = SubscriptionsUserSerializer(
+            pages,
+            many=True,
+            context={'request': request}
+        )
+        return self.get_paginated_response(serializer.data)
+
+    @action(
         detail=True,
         methods=['POST', 'DELETE'],
         permission_classes=(IsAuthenticated,),
-        url_path='subscribe',
     )
-    def subscriptions(self, request, pk=None):
-        user = get_object_or_404(User, id=self.kwargs.get('pk'))
-        serializer = SubscriptionsUserSerializer(
-            user,
-            context={'request': request}
+    def subscribe(self, request, pk=None):
+        user = request.user
+        subscribed = get_object_or_404(User, id=pk)
+        followings = Subscription.objects.filter(
+            user=user,
+            following=subscribed
         )
-        if self.request.method != 'POST':
+        if request.method != 'POST':
             try:
-                delete_subscriptions = get_object_or_404(
-                    Subscription,
-                    following=request.user.id,
-                    user=user.id
-                )
+                followings.delete()
+                return Response(status=status.HTTP_204_NO_CONTENT)
             except Exception:
                 return Response(
                     'Вы не подписаны на данного пользователя',
                     status=status.HTTP_400_BAD_REQUEST
                 )
-            delete_subscriptions.delete()
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
-
-    @action(
-        detail=False,
-        methods=['GET'],
-        permission_classes=(IsAuthenticated,),
-        url_path='subscriptions'
-    )
-    def get_subscriptions(self, request):
-        user = request.user
-        subscriptions = user.following.all().values_list(
-            'following',
-            flat=True
+        create_followings = Subscription.objects.create(
+            user=user,
+            following=subscribed
         )
-        subscriptions_users = User.objects.filter(id__in=subscriptions)
-        page = self.paginate_queryset(subscriptions_users)
-        if page is not None:
-            serializer = SubscriptionsUserSerializer(page, many=True)
-            return self.get_paginated_response(serializer.data)
         serializer = SubscriptionsUserSerializer(
-            subscriptions_users,
-            many=True
+            create_followings,
+            context={'request': request}
         )
-        return Response(serializer.data)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)

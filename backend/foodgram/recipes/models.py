@@ -192,7 +192,7 @@ class ShortLinkRecipe(models.Model):
         on_delete=models.CASCADE,
         default=None,
     )
-    full_link = models.URLField(unique=True)
+    full_link = models.URLField()
 
     class Meta:
         verbose_name = 'Короткая ссылка'

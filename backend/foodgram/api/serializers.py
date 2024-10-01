@@ -1,9 +1,12 @@
+import random
+import string
+
 from django.db.models import F
+from django.core.exceptions import ObjectDoesNotExist
 from djoser.serializers import UserCreateSerializer, UserSerializer
 from rest_framework import serializers, status
 from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
-from rest_framework.validators import UniqueTogetherValidator
 
 from api.const import USERNAME_MAX_LENGTH
 from api.fields import Base64ImageField
@@ -64,14 +67,14 @@ class UsersSerializer(UserSerializer):
             'first_name',
             'last_name',
             'is_subscribed',
-            'avatar',
+            'avatar'
         )
 
     def get_is_subscribed(self, obj):
         user = self.context.get('request').user
-        if user.is_anonymous or user == obj:
+        if user.is_anonymous:
             return False
-        return user.following.filter(id=obj.id).exists()
+        return Subscription.objects.filter(user=user, following=obj.id).exists()
 
 
 class AvatarUserSerializer(serializers.ModelSerializer):
@@ -105,8 +108,8 @@ class ReadRecipeSerializer(serializers.ModelSerializer):
     tags = TagSerializer(read_only=True, many=True)
     author = UsersSerializer(read_only=True)
     ingredients = serializers.SerializerMethodField(read_only=True)
-    is_favorited = serializers.SerializerMethodField(read_only=True)
-    is_in_shopping_cart = serializers.SerializerMethodField(read_only=True)
+    is_favorited = serializers.SerializerMethodField()
+    is_in_shopping_cart = serializers.SerializerMethodField()
     name = serializers.CharField(read_only=True)
     image = Base64ImageField(read_only=True)
     text = serializers.CharField(read_only=True)
@@ -136,21 +139,21 @@ class ReadRecipeSerializer(serializers.ModelSerializer):
             amount=F('array_ingredients__amount'),
         )
 
-    def base_favorited_shopping_cart(self):
+    def base_favorited_shopping_cart(self, obj):
         user = self.context.get('request').user
         if user.is_anonymous:
             return False
-        return self.Meta.model.objects.filter(
-            author=user
+        return obj.filter(
+            user=user
         ).exists()
 
     def get_is_favorited(self, obj):
         """Избранное."""
-        return self.base_favorited_shopping_cart()
+        return self.base_favorited_shopping_cart(obj.favorites)
 
     def get_is_in_shopping_cart(self, obj):
         """Список покупок."""
-        return self.base_favorited_shopping_cart()
+        return self.base_favorited_shopping_cart(obj.shopping_list)
 
 
 class CreateArrayIngredients(serializers.ModelSerializer):
@@ -234,8 +237,11 @@ class UpdateCreateRecipeSerializers(serializers.ModelSerializer):
         ingredients = validated_data.pop('ingredients')
         tags = validated_data.pop('tags')
         instance = super().update(instance, validated_data)
+        instance.tags.clear()
+        instance.ingredients.clear()
         instance.tags.set(tags)
-        self.create_ingredients(ingredients, instance)
+        self.create_ingredients(ingredients=ingredients, recipes=instance)
+        instance.save()
         return instance
 
     def to_representation(self, instance):
@@ -250,6 +256,23 @@ class ShortLinkSerializer(serializers.ModelSerializer):
         model = ShortLinkRecipe
         fields = ('shortlink', 'recipe', 'full_link',)
         read_only = ('shortlink',)
+        write_only_fields = ('full_link', 'recipe')
+
+    def shortlink(self):
+        characters = string.ascii_letters + string.digits
+        return ''.join(random.choice(characters) for _ in range(6))
+
+    def create(self, validated_data):
+        try:
+            return ShortLinkRecipe.objects.get(
+                recipe=validated_data['recipe'].id,
+                full_link=validated_data['full_link'])
+        except Exception:
+            return ShortLinkRecipe.objects.create(
+                recipe=validated_data['recipe'],
+                full_link=validated_data['full_link'],
+                shortlink=self.shortlink()
+            )
 
 
 class ForFavoritesandShoppingCartSerializer(ReadRecipeSerializer):
@@ -305,57 +328,46 @@ class ShoppingCartSerializer(FavoritesandShoppingCartSerializer):
         fields = ('recipes',)
 
 
-class CreateSubscriptionsSerializer(serializers.ModelSerializer):
-
-    class Meta:
-        model = Subscription
-        fields = ('user', 'following')
-        validators = [
-            UniqueTogetherValidator(
-                queryset=Subscription.objects.all(),
-                fields=['user', 'following']
-            )
-        ]
-
-    def validate(self, data):
-        if data['user'] == data['following']:
-            raise ValidationError(
-                'Нельзя подписаться на самого себя',
-                Response(status=status.HTTP_400_BAD_REQUEST)
-            )
-        return data
-
-    def create(self, validated_data):
-        return Subscription.objects.create(
-            user=validated_data['user'],
-            following=validated_data['following'],
-        )
-
-
 class SubscriptionsUserSerializer(serializers.ModelSerializer):
-    recipe_set = ForFavoritesandShoppingCartSerializer(
-        read_only=True,
-        many=True,
-    )
+    id = serializers.ReadOnlyField(source='following.id')
+    email = serializers.ReadOnlyField(source='following.email')
+    username = serializers.ReadOnlyField(source='following.username')
+    first_name = serializers.ReadOnlyField(source='following.first_name')
+    last_name = serializers.ReadOnlyField(source='following.last_name')
+    recipes = serializers.SerializerMethodField(read_only=True)
     recipes_count = serializers.SerializerMethodField(read_only=True)
-    is_subscribed = serializers.SerializerMethodField(read_only=True)
+    is_subscribed = serializers.SerializerMethodField()
 
     class Meta:
         model = User
         fields = (
+            'email',
             'id',
             'username',
             'first_name',
             'last_name',
-            'email',
             'is_subscribed',
             'avatar',
-            'recipes_count',
-            'recipe_set',
+            'recipes',
+            'recipes_count'
         )
 
-    def get_recipes_count(self, obj):
-        return Recipe.objects.filter(author=obj.id).count()
-
     def get_is_subscribed(self, obj):
-        return True
+        user = self.context.get('request').user
+        if user.is_anonymous:
+            return False
+        return Subscription.objects.filter(
+            user=user,
+            following=obj.following
+        ).exists()
+
+    def get_recipes(self, obj):
+        request = self.context.get('request')
+        limit = request.GET.get('recipes_limit')
+        queryset = Recipe.objects.filter(author=obj.following)
+        if limit:
+            queryset = queryset[:int(limit)]
+        return ForFavoritesandShoppingCartSerializer(queryset, many=True).data
+
+    def get_recipes_count(self, obj):
+        return Recipe.objects.filter(author=obj.following).count()

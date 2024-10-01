@@ -28,6 +28,10 @@ class IngredientsAdmin(admin.ModelAdmin):
     search_fields = ('name',)
 
 
+class ShortLinkRecipeAdmin(admin.ModelAdmin):
+    search_fields = ('shortlink',)
+
+
 admin.site.register(Tag)
 admin.site.register(Ingredient, IngredientsAdmin)
 admin.site.register(Recipe, RecipesAdmin)

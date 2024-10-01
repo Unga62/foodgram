@@ -57,7 +57,7 @@ class Subscription(models.Model):
         null=True
     )
 
-    def clean(self):
+    def validate(self):
         if self.user == self.following:
             raise ValidationError(
                 "Пользователь не может подписаться на самого себя."

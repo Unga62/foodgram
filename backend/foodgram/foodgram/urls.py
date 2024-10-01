@@ -6,5 +6,5 @@ from api.views import redirection
 urlpatterns = [
     path('admin/', admin.site.urls),
     path('api/', include('api.urls')),
-    path('<shortlink>/', redirection, name='redirection'),
+    path('s/<shortlink>/', redirection, name='redirection'),
 ]
