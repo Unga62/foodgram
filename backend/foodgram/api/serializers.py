@@ -133,7 +133,7 @@ class ReadRecipeSerializer(serializers.ModelSerializer):
         )
 
     def get_ingredients(self, obj):
-        """Cписок ингридиентов для рецепта."""
+        """Cписок ингредиентов для рецепта."""
         return obj.ingredients.values(
             'id',
             'name',
@@ -243,7 +243,6 @@ class UpdateCreateRecipeSerializers(serializers.ModelSerializer):
         instance.ingredients.clear()
         instance.tags.set(tags)
         self.create_ingredients(ingredients=ingredients, recipes=instance)
-        instance.save()
         return instance
 
     def to_representation(self, instance):
