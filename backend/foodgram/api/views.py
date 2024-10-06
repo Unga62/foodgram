@@ -26,7 +26,6 @@ from api.serializers import (
     UsersSerializer,
 )
 from recipes.models import (
-    ArrayIngredient,
     Favorite,
     Ingredient,
     Recipe,
