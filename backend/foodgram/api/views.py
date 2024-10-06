@@ -1,7 +1,4 @@
-import csv
-
 from django.contrib.sites.shortcuts import get_current_site
-from django.db.models import Sum
 from django.http import HttpResponse
 from django.shortcuts import get_object_or_404, redirect
 from django_filters.rest_framework import DjangoFilterBackend
@@ -144,22 +141,6 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
             pk
         )
 
-    def download_csv(self, ingredients):
-        response = HttpResponse(content_type='text/csv')
-        response['Content-Disposition'] = (
-            'attachment; filename="product_list.csv"'
-        )
-        writer = csv.writer(response)
-        for product in ingredients:
-            writer.writerow(
-                [
-                    product.get('ingredients__name'),
-                    product.get('quantity'),
-                    product.get('ingredients__measurement_unit'),
-                ]
-            )
-        return response
-
     @action(
         detail=False,
         methods=['GET'],
@@ -168,15 +149,34 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
     )
     def download_shopping_cart(self, request):
         author = request.user
-        ingredients = ArrayIngredient.objects.filter(
-            recipes__author=author
-        ).values(
-            'ingredients__name',
-            'ingredients__measurement_unit'
-        ).annotate(
-            quantity=Sum('amount')
+        shopping_cart = ShoppingCart.objects.filter(user=author)
+        ingredients = {}
+        for ing in shopping_cart:
+            recipe_ingredients = ing.recipes.array_ingredients.all()
+            for ingredient in recipe_ingredients:
+                name = ingredient.ingredients.name
+                unit = ingredient.ingredients.measurement_unit
+                amount = ingredient.amount
+                if name in ingredients:
+                    ingredients[name]['amount'] += amount
+                else:
+                    ingredients[name] = {
+                        'amount': amount,
+                        'unit': unit,
+                    }
+        shopping_cart_ingredients = ''
+        for ingredient, data in ingredients.items():
+            shopping_cart_ingredients += (f"{ingredient}: {data['amount']}"
+                                          f"{data['unit']}\n")
+        response = HttpResponse(
+            shopping_cart_ingredients,
+            content_type='text/plain'
         )
-        return self.download_csv(ingredients)
+        response['Content-Disposition'] = (
+            'attachment;'
+            'filename="shopping_list.txt"'
+        )
+        return response
 
 
 def redirection(request, shortlink):
