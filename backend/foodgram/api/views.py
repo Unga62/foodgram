@@ -166,8 +166,8 @@ class RecipeViewset(viewsets.ModelViewSet, PaginationMixins):
                     }
         shopping_cart_ingredients = ''
         for ingredient, data in ingredients.items():
-            shopping_cart_ingredients += (f"{ingredient}: {data['amount']}"
-                                          f"{data['unit']}\n")
+            shopping_cart_ingredients += (f"{ingredient}: ({data['unit']}) — "
+                                          f"{data['amount']}\n")
         response = HttpResponse(
             shopping_cart_ingredients,
             content_type='text/plain'
